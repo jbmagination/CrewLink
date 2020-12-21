@@ -32,30 +32,30 @@ const store = new Store<ISettings>();
 
 async function loadOffsets(event: Electron.IpcMainEvent): Promise<IOffsets | undefined> {
 
-	const valuesFile = resolve((process.env.LOCALAPPDATA || '') + 'Low', 'Innersloth/Among Us/Unity/6b8b0d91-4a20-4a00-a3e4-4da4a883a5f0/Analytics/values');
-	let version = '';
-	if (existsSync(valuesFile)) {
-		try {
-			const json = JSON.parse(readFileSync(valuesFile, 'utf8'));
-			version = json.app_ver;
-		} catch (e) {
-			console.error(e);
-			event.reply('error', `Couldn't determine the Among Us version - ${e}. Try opening Among Us and then restarting CrewLink.`);
-			return;
-		}
-	} else {
-		event.reply('error', 'Couldn\'t determine the Among Us version - Unity analytics file doesn\'t exist. Try opening Among Us and then restarting CrewLink.');
-		return;
-	}
+	//const valuesFile = resolve((process.env.LOCALAPPDATA || '') + 'Low', 'Innersloth/Among Us/Unity/6b8b0d91-4a20-4a00-a3e4-4da4a883a5f0/Analytics/values');
+	let version = 'x64';
+	// if (existsSync(valuesFile)) {
+	// 	try {
+	// 		const json = JSON.parse(readFileSync(valuesFile, 'utf8'));
+	// 		version = json.app_ver;
+	// 	} catch (e) {
+	// 		console.error(e);
+	// 		event.reply('error', `Couldn't determine the Among Us version - ${e}. Try opening Among Us and then restarting CrewLink.`);
+	// 		return;
+	// 	}
+	// } else {
+	// 	event.reply('error', 'Couldn\'t determine the Among Us version - Unity analytics file doesn\'t exist. Try opening Among Us and then restarting CrewLink.');
+	// 	return;
+	// }
 
 	let data: string;
-	const offsetStore = store.get('offsets') || {};
-	if (version === offsetStore.version) {
+	const offsetStore =  store.get('offsets') || {};
+	if (false === true && version === offsetStore.version) {
 		data = offsetStore.data;
 	} else {
 		try {
 			const response = await axios({
-				url: `${store.get('serverURL')}/${version}.yml`
+				url: `${store.get('serverURL')}/x64.yml`
 			});
 			data = response.data;
 		} catch (_e) {
@@ -79,6 +79,7 @@ async function loadOffsets(event: Electron.IpcMainEvent): Promise<IOffsets | und
 	}
 
 	const offsets: IOffsets = yml.safeLoad(data) as unknown as IOffsets;
+	console.log("HEY");
 	try {
 		IOffsets.check(offsets);
 		if (!version) {

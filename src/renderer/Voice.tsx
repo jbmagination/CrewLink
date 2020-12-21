@@ -560,7 +560,7 @@ const Voice: React.FC = function () {
 		}
 		let overlay = remote.getGlobal("overlay");
 		if (overlay) overlay.webContents.send('overlaySocketIds', socketPlayerIds);
-		console.log("socketPlayerIds3", socketPlayerIds);
+	//	console.log("socketPlayerIds3", socketPlayerIds);
 
 		for (const player of otherPlayers) {
 			const audio = audioElements.current[playerSocketIds[player.id]];
