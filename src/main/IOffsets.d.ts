@@ -22,7 +22,7 @@ export interface IOffsets {
 		offsets: number[];
 		inVent: number[];
 		struct: {
-			type: 'INT' | 'INT_BE' | 'UINT' | 'UINT_BE' | 'UINT64' | 'SHORT' | 'SHORT_BE' | 'USHORT' | 'USHORT_BE' | 'FLOAT' | 'CHAR' | 'BYTE' | 'SKIP';
+			type: 'INT' | 'INT_BE' | 'UINT' | 'UINT_BE' | 'SHORT' | 'SHORT_BE' | 'USHORT' | 'USHORT_BE' | 'FLOAT' | 'CHAR' | 'BYTE' | 'SKIP';
 			skip?: number;
 			name: string;
 		}[];

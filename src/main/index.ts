@@ -71,6 +71,7 @@ function createMainWindow() {
 	}
 
 	window.on('closed', () => {
+		console.log("window-all-closed")
 		global.mainWindow = null;
 		global.overlay?.close();
 		global.overlay = null;
@@ -139,6 +140,9 @@ if (!gotTheLock) {
 
 	// quit application when all windows are closed
 	app.on('window-all-closed', () => {
+		if (isDevelopment) {
+			return;
+		}
 		// on macOS it is common for applications to stay open until the user explicitly quits
 		if (process.platform !== 'darwin') {
 			if (global.overlay != null) {
@@ -153,7 +157,7 @@ if (!gotTheLock) {
 		// on macOS it is common to re-create a window even after all windows have been closed
 		if (global.mainWindow === null) {
 			global.mainWindow = createMainWindow();
-		}
+		} 
 	});
 
 	// create main BrowserWindow when electron is ready

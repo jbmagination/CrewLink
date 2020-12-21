@@ -1,4 +1,4 @@
-import { DataType, findModule, getProcesses, ModuleObject, openProcess, ProcessObject, readBuffer, readMemory as readMemoryRaw, findPattern} from 'memoryjs';
+import { DataType, findModule, getProcesses, ModuleObject, openProcess, ProcessObject, readBuffer, readMemory as readMemoryRaw, findPattern } from 'memoryjs';
 import Struct from 'structron';
 import patcher from '../patcher';
 import { GameState, AmongUsState, Player } from '../common/AmongUsState';
@@ -58,53 +58,53 @@ export default class GameReader {
 		}
 		return;
 	}
- gameClient : number = 0;
- meetinHud : number = 0;
- gameData : number = 0;
- is_64bit : boolean = true;
+	gameClient: number = 0;
+	meetinHud: number = 0;
+	gameData: number = 0;
+	is_64bit: boolean = true;
 
 	loop(): void {
 		this.checkProcessOpen();
 
 		if (this.amongUs !== null && this.gameAssembly !== null) {
 
-			// if(!this.updated_offsets) {
-			// //'74 7F 83 7E 2C 00 A1 ? ? ? ? 8B 40 5C'
-			// this.gameClient = this.getOffset("74 7F 83 7E 2C 00 A1 ? ? ? ? 8B 40 5C", 0x7);
-			// this.meetinHud = this.getOffset("A1 ? ? ? ? 6A 00 6A 00 6A 63 8B 40 5C FF 30");
-			// this.gameData = this.getOffset("8B 0D ? ? ? ? 6A 00 6A 01 6A 9C 8B 49 5C 89 01 A1 ? ? ? ? 8B 40 5C", 0x2)
-			// console.log("OOF:", this.meetinHud.toString(16),this.gameClient.toString(16),this.gameData.toString(16));
-			// this.updated_offsets = true;
-			// }
-			// this.offsets.meetingHud[0] = this.meetinHud;
-			// this.offsets.exiledPlayerId[1] = this.meetinHud;
-			// this.offsets.allPlayersPtr[0] = this.gameData;
-			//this.offsets.gameState[0] = this.gameClient;
+			if (!this.updated_offsets) {
+				//'74 7F 83 7E 2C 00 A1 ? ? ? ? 8B 40 5C'
+				this.gameClient = this.getOffset("48 8B 05 ? ? ? ? 48 8B 88 ? ? ? ? 48 8B 01 48 85 C0 0F 84 ? ? ? ? 66 66 66 0F 1F 84 00 ? ? ? ?", 0x3, 0x4);
+				this.meetinHud = this.getOffset("48 8B 05 ? ? ? ? 48 8B 88 ? ? ? ? 74 72 48 8B 39 48 8B 0D ? ? ? ? F6 81 ? ? ? ? ?", 0x3, 0x4);
+				this.gameData = this.getOffset("48 8B 05 ? ? ? ? 48 8B 88 ? ? ? ? 48 8B 01 48 85 C0 0F 84 ? ? ? ? BE ? ? ? ?", 0x3, 0x4)
+				console.log("OOF:", this.meetinHud.toString(16), this.gameClient.toString(16), this.gameData.toString(16));
+				this.updated_offsets = true;
+			}
+			this.offsets.meetingHud[0] = this.meetinHud;
+			this.offsets.exiledPlayerId[1] = this.meetinHud;
+			this.offsets.allPlayersPtr[0] = this.gameData;
+			this.offsets.gameState[0] = this.gameClient;
 
 			let state = GameState.UNKNOWN;
 			const meetingHud = this.readMemory<number>('pointer', this.gameAssembly.modBaseAddr, this.offsets.meetingHud);
 			const meetingHud_cachePtr = meetingHud === 0 ? 0 : this.readMemory<number>('uint32', meetingHud, this.offsets.meetingHudCachePtr);
 			const meetingHudState = meetingHud_cachePtr === 0 ? 4 : this.readMemory('int', meetingHud, this.offsets.meetingHudState, 4);
 			const gameState = this.readMemory<number>('int', this.gameAssembly.modBaseAddr, this.offsets.gameState);
-		
+
 			switch (gameState) {
-			case 0:
-				state = GameState.MENU;
-				this.exileCausesEnd = false;
-				break;
-			case 1:
-			case 3:
-				state = GameState.LOBBY;
-				this.exileCausesEnd = false;
-				break;
-			default:
-				if (this.exileCausesEnd)
+				case 0:
+					state = GameState.MENU;
+					this.exileCausesEnd = false;
+					break;
+				case 1:
+				case 3:
 					state = GameState.LOBBY;
-				else if (meetingHudState < 4)
-					state = GameState.DISCUSSION;
-				else
-					state = GameState.TASKS;
-				break;
+					this.exileCausesEnd = false;
+					break;
+				default:
+					if (this.exileCausesEnd)
+						state = GameState.LOBBY;
+					else if (meetingHudState < 4)
+						state = GameState.DISCUSSION;
+					else
+						state = GameState.TASKS;
+					break;
 			}
 
 			const allPlayersPtr = this.readMemory<number>('ptr', this.gameAssembly.modBaseAddr, this.offsets.allPlayersPtr);
@@ -115,22 +115,24 @@ export default class GameReader {
 
 			const exiledPlayerId = this.readMemory<number>('byte', this.gameAssembly.modBaseAddr, this.offsets.exiledPlayerId);
 			let impostors = 0, crewmates = 0;
-			for (let i = 0; i < Math.min(playerCount, 10); i++) {
-				const { address, last } = this.offsetAddress(playerAddrPtr, this.offsets.player.offsets);
-				const playerData = readBuffer(this.amongUs.handle, address + last, this.offsets.player.bufferLength);
-				const player = this.parsePlayer(address + last, playerData);
-			//	console.log(i, player, address.toString(16), playerData);
-				playerAddrPtr += 8;
-				players.push(player);
+			this.gameCode = this.IntToGameCode(this.readMemory<number>('int32', this.gameAssembly.modBaseAddr, [this.gameClient, 0xB8, 0x0, 0x74]))
+			if (this.gameCode !== '') {
+				for (let i = 0; i < Math.min(playerCount, 10); i++) {
+					const { address, last } = this.offsetAddress(playerAddrPtr, this.offsets.player.offsets);
+					const playerData = readBuffer(this.amongUs.handle, address + last, this.offsets.player.bufferLength);
+					const player = this.parsePlayer(address + last, playerData);
+					//	console.log(i, player, address.toString(16), playerData);
+					playerAddrPtr += 8;
+					players.push(player);
 
-				if (player.name === '' || player.id === exiledPlayerId || player.isDead || player.disconnected) continue;
+					if (player.name === '' || player.id === exiledPlayerId || player.isDead || player.disconnected) continue;
 
-				if (player.isImpostor)
-					impostors++;
-				else
-					crewmates++;
+					if (player.isImpostor)
+						impostors++;
+					else
+						crewmates++;
+				}
 			}
-
 			if (this.oldGameState === GameState.DISCUSSION && state === GameState.TASKS) {
 				if (impostors === 0 || impostors >= crewmates) {
 					this.exileCausesEnd = true;
@@ -146,9 +148,8 @@ export default class GameReader {
 			}
 			this.lastPlayerPtr = allPlayers;
 
-			this.gameCode  = this.IntToGameCode(this.readMemory<number>('int32', this.gameAssembly.modBaseAddr, [this.gameClient, 0x5C, 0x0, 0x40]))
-			const hostId = this.readMemory<number>('uint32', this.gameAssembly.modBaseAddr, [this.gameClient, 0x5C, 0x0, 0x44]);
-			const clientId = this.readMemory<number>('uint32', this.gameAssembly.modBaseAddr, [this.gameClient, 0x5C, 0x0, 0x48]);
+			const hostId = this.readMemory<number>('uint32', this.gameAssembly.modBaseAddr, [this.gameClient, 0xB8, 0x0, 0x78]);
+			const clientId = this.readMemory<number>('uint32', this.gameAssembly.modBaseAddr, [this.gameClient, 0xB8, 0x0, 0x7C]);
 
 			const newState = {
 				lobbyCode: this.gameCode || 'MENU',
@@ -188,15 +189,17 @@ export default class GameReader {
 
 	}
 
-	getOffset(signature: string, patternOffset: number = 0x1) : number{
+	getOffset(signature: string, patternOffset: number = 0x1, addressOffset: number = 0x0): number {
 		if (!this.amongUs || !this.gameAssembly) return 0x0;
-			const signatureTypes = 0x0 | 0x2;
-			const gameclient_function = findPattern(this.amongUs.handle, "GameAssembly.dll", signature, signatureTypes, patternOffset, 0x0);
-			return this.readMemory<number>('int', this.gameAssembly.modBaseAddr,[gameclient_function]) -  this.gameAssembly.modBaseAddr;
+		const signatureTypes = 0x0 | 0x2;
+		const gameclient_function = findPattern(this.amongUs.handle, "GameAssembly.dll", signature, signatureTypes, patternOffset, 0x0);
+		return this.readMemory<number>('int', this.gameAssembly.modBaseAddr, [gameclient_function]) + gameclient_function + addressOffset;
+
+		//		return this.readMemory<number>('int', this.gameAssembly.modBaseAddr,[gameclient_function]) -  this.gameAssembly.modBaseAddr;
 	}
 
 	readMemory<T>(dataType: DataType, address: number, offsets: number[], defaultParam?: T): T {
-		if(this.is_64bit && (dataType == 'pointer' || dataType == 'ptr')){
+		if (this.is_64bit && (dataType == 'pointer' || dataType == 'ptr')) {
 			dataType = 'uint64';
 		}
 		if (!this.amongUs) return defaultParam as T;
@@ -211,9 +214,9 @@ export default class GameReader {
 	}
 	offsetAddress(address: number, offsets: number[]): { address: number, last: number } {
 		if (!this.amongUs) throw 'Among Us not open? Weird error';
-		address = this.is_64bit? address  :  address & 0xffffffff;
+		address = this.is_64bit ? address : address & 0xffffffff;
 		for (let i = 0; i < offsets.length - 1; i++) {
-			address = readMemoryRaw<number>(this.amongUs.handle, address + offsets[i], this.is_64bit? 'uint64' : 'uint32');
+			address = readMemoryRaw<number>(this.amongUs.handle, address + offsets[i], this.is_64bit ? 'uint64' : 'uint32');
 
 			if (address == 0) break;
 		}
@@ -222,15 +225,15 @@ export default class GameReader {
 	}
 	readString(address: number): string {
 		if (address === 0 || !this.amongUs) return '';
-		const length = readMemoryRaw<number>(this.amongUs.handle, address + (this.is_64bit? 0x10 : 0x8), 'int');
-		const buffer = readBuffer(this.amongUs.handle, address + (this.is_64bit? 0x14 : 0xC), length << 1);
+		const length = readMemoryRaw<number>(this.amongUs.handle, address + (this.is_64bit ? 0x10 : 0x8), 'int');
+		const buffer = readBuffer(this.amongUs.handle, address + (this.is_64bit ? 0x14 : 0xC), length << 1);
 		return buffer.toString('binary').replace(/\0/g, '');
 	}
-	
+
 	IntToGameCode(input: number) {
-		if (input === 0)
+		if (input === 0 || input > -1000)
 			return "";
-	
+
 		const V2: string = "QWXRTYLPESDFGHUJKZOCVBINMA";
 		const a = input & 0x3FF;
 		const b = (input >> 10) & 0xFFFFF;
@@ -243,12 +246,12 @@ export default class GameReader {
 			V2[Math.floor(b / (26 * 26 * 26) % 26)]
 		].join("");
 	}
-	
+
 	parsePlayer(ptr: number, buffer: Buffer): Player {
 		const { data } = this.PlayerStruct.report<PlayerReport>(buffer, 0, {});
-		if(this.is_64bit){
-			data.objectPtr = this.readMemory('pointer',ptr, [this.PlayerStruct.getOffsetByName("objectPtr")]);
-			data.name = this.readMemory('pointer',ptr, [this.PlayerStruct.getOffsetByName("name")]);
+		if (this.is_64bit) {
+			data.objectPtr = this.readMemory('pointer', ptr, [this.PlayerStruct.getOffsetByName("objectPtr")]);
+			data.name = this.readMemory('pointer', ptr, [this.PlayerStruct.getOffsetByName("name")]);
 		}
 
 		const isLocal = this.readMemory<number>('int', data.objectPtr, this.offsets.player.isLocal) !== 0;
@@ -257,13 +260,13 @@ export default class GameReader {
 			this.offsets.player.localX,
 			this.offsets.player.localY
 		] : [
-			this.offsets.player.remoteX,
-			this.offsets.player.remoteY
-		];
+				this.offsets.player.remoteX,
+				this.offsets.player.remoteY
+			];
 
 		const x = this.readMemory<number>('float', data.objectPtr, positionOffsets[0]);
 		const y = this.readMemory<number>('float', data.objectPtr, positionOffsets[1]);
-       	const clientId = this.readMemory<number>('int', data.objectPtr, [0x1C]  ); //playerdata.ownerId
+		const clientId = this.readMemory<number>('int', data.objectPtr, [0x1C]); //playerdata.ownerId
 
 		return {
 			ptr,
